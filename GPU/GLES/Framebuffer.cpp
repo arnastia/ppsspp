@@ -307,7 +307,7 @@ void FramebufferManager::DrawPixels(const u8 *framebuf, int pixelFormat, int lin
 	DrawActiveTexture(x, y, w, h, false, 480.0f / 512.0f);
 }
 
-void FramebufferManager::DrawActiveTexture(float x, float y, float w, float h, bool flip, float uscale, float vscale, GLSLProgram *program) {
+void _DrawActiveTexture(float x, float y, float w, float h, bool flip, float uscale, float vscale, GLSLProgram *program, Matrix4x4 *ortho_ptr) {
 	float u2 = uscale;
 	// Since we're flipping, 0 is down.  That's where the scale goes.
 	float v1 = flip ? 1.0f : 1.0f - vscale;
@@ -317,14 +317,12 @@ void FramebufferManager::DrawActiveTexture(float x, float y, float w, float h, b
 	const float texCoords[8] = {0,v1, u2,v1, u2,v2, 0,v2};
 	const GLubyte indices[4] = {0,1,3,2};
 
-	if(!program) {
-		program = draw2dprogram;
+	if(!program || !ortho_ptr) {
+		return;
 	}
 
 	glsl_bind(program);
-	Matrix4x4 ortho;
-	ortho.setOrtho(0, (float)PSP_CoreParameter().pixelWidth, (float)PSP_CoreParameter().pixelHeight, 0, -1, 1);
-	glUniformMatrix4fv(program->u_viewproj, 1, GL_FALSE, ortho.getReadPtr());
+	glUniformMatrix4fv(program->u_viewproj, 1, GL_FALSE, ortho_ptr->getReadPtr());
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glEnableVertexAttribArray(program->a_position);
@@ -336,6 +334,13 @@ void FramebufferManager::DrawActiveTexture(float x, float y, float w, float h, b
 	glDisableVertexAttribArray(program->a_position);
 	glDisableVertexAttribArray(program->a_texcoord0);
 	glsl_unbind();
+}
+
+void FramebufferManager::DrawActiveTexture(float x, float y, float w, float h, bool flip, float uscale, float vscale) {
+	Matrix4x4 ortho;
+	ortho.setOrtho(0, (float)PSP_CoreParameter().pixelWidth, (float)PSP_CoreParameter().pixelHeight, 0, -1, 1);
+
+	_DrawActiveTexture(x, y, w, h, flip, uscale, vscale, draw2dprogram, &ortho);
 }
 
 VirtualFramebuffer *FramebufferManager::GetDisplayFBO() {
@@ -829,9 +834,12 @@ void FramebufferManager::BlitFramebuffer_(VirtualFramebuffer *src, VirtualFrameb
 	fbo_bind_color_as_texture(src->fbo, 0);
 
 	float x, y, w, h;
-	CenterRect(&x, &y, &w, &h, 480.0f, 272.0f, (float)PSP_CoreParameter().pixelWidth, (float)PSP_CoreParameter().pixelHeight);
+	CenterRect(&x, &y, &w, &h, 480.0f, 272.0f, (float)src->renderWidth, (float)src->renderHeight);
 
-	DrawActiveTexture(x, y, w, h, flip, upscale, vscale, draw2dprogram);
+	Matrix4x4 ortho;
+	ortho.setOrtho(0, (float)src->renderWidth, (float)src->renderHeight, 0, -1, 1);
+
+	_DrawActiveTexture(x, y, w, h, flip, upscale, vscale, draw2dprogram, &ortho);
 	
 	glBindTexture(GL_TEXTURE_2D, 0);
 	fbo_unbind();
