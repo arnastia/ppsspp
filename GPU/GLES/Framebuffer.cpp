@@ -834,10 +834,10 @@ void FramebufferManager::BlitFramebuffer_(VirtualFramebuffer *src, VirtualFrameb
 	fbo_bind_color_as_texture(src->fbo, 0);
 
 	float x, y, w, h;
-	CenterRect(&x, &y, &w, &h, 480.0f, 272.0f, (float)src->renderWidth, (float)src->renderHeight);
+	CenterRect(&x, &y, &w, &h, (float)src->width, (float)src->height, (float)src->width, (float)src->height);
 
 	Matrix4x4 ortho;
-	ortho.setOrtho(0, (float)src->renderWidth, (float)src->renderHeight, 0, -1, 1);
+	ortho.setOrtho(0, (float)src->width, (float)src->height, 0, -1, 1);
 
 	_DrawActiveTexture(x, y, w, h, flip, upscale, vscale, draw2dprogram, &ortho);
 	
